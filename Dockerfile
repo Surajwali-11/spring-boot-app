@@ -1,4 +1,5 @@
-FROM eclipse-temurin:11-jre-alpine
+FROM adoptopenjdk/openjdk11:alpine-jre
+ 
 
 # Simply the artifact path
 ARG artifact=target/spring-boot-web.jar
