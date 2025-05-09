@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: spring-boot-app
-        image: basu:1
+        image: basu357/basurepo:1
         ports:
         - containerPort: 8080
