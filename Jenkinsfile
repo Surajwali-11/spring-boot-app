@@ -37,7 +37,7 @@ pipeline {
     stage('Build and Push Docker Image') {
       steps {
         script {
-          sh 'docker build -t $IMAGE_NAME .'
+          sh 'docker.build registry'
         }
       }
     }
