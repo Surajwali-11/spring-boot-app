@@ -4,6 +4,9 @@ pipeline {
     IMAGE_NAME = "nithishnithi/nithish:1"
     MANIFEST_PATH = "manifest_file/k8s"
   }
+    parameters {
+    booleanParam(name: 'Proceed', defaultValue: false, description: 'Approve the deployment to Prod')
+  }
 
   stages {
     stage('Checkout') {
