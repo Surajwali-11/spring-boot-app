@@ -1,68 +1,120 @@
 pipeline {
-  agent {
-    docker {
-      image 'abhishekf5/maven-abhishek-docker-agent:v1'
-      args '--user root -v /var/run/docker.sock:/var/run/docker.sock' // mount Docker socket to access the host's Docker daemon
-    }
+  agent any
+  environment {
+    IMAGE_NAME = "Nithishkumar-Ptech/nithish:1"
+    MANIFEST_PATH = "manifest_file/k8s"
   }
+
   stages {
     stage('Checkout') {
       steps {
-        sh 'echo passed'
-        //git branch: 'main', url: 'https://github.com/mdazfar2/maven-jenkins-ArgoCD.git'
+        git branch: 'main', url: 'https://github.com/Nithishkumar-Ptech/spring-boot-app.git'
       }
     }
+
     stage('Build and Test') {
       steps {
         sh 'ls -ltr'
-        // build the project and create a JAR file
         sh 'mvn clean package'
       }
     }
-    stage('Static Code Analysis') {
+
+   stage('Static Code Analysis') {
       environment {
-        SONAR_URL = "http://20.15.228.97:9000"
+        SONAR_URL = "http://34.201.107.92:9000/"
       }
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          sh 'mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+          sh '''
+            mvn sonar:sonar \
+              -Dsonar.login=$SONAR_AUTH_TOKEN \
+              -Dsonar.host.url=$SONAR_URL
+          '''
         }
       }
     }
+
     stage('Build and Push Docker Image') {
-      environment {
-        DOCKER_IMAGE = "azfaralam440/argocd:${BUILD_NUMBER}"
-        // DOCKERFILE_LOCATION = "spring-boot-app/Dockerfile"
-        REGISTRY_CREDENTIALS = credentials('docker')
+      steps {
+        script {
+          sh 'docker build -t $IMAGE_NAME .'
+        }
+      }
+    }
+
+    stage('Push to DockerHub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'Dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push $IMAGE_NAME
+          '''
+        }
+      }
+    }
+
+    
+
+    stage('Deploy to Dev') {
+      steps {
+        script {
+          sh '''
+            kubectl apply -f ${MANIFEST_PATH}/dev/deployment.yaml --namespace=dev
+            kubectl rollout status deployment/spring-boot-app --namespace=dev
+          '''
+        }
+      }
+    }
+
+    stage('Deploy to Test') {
+      steps {
+        script {
+          sh '''
+            kubectl apply -f ${MANIFEST_PATH}/test/deployment.yaml --namespace=test
+            kubectl rollout status deployment/spring-boot-app --namespace=test
+          '''
+        }
+      }
+    }
+
+    stage('Approval to Deploy to Prod') {
+      steps {
+        script {
+          input message: "Approve deployment to Prod?", parameters: [
+            booleanParam(name: 'Proceed', defaultValue: false, description: 'Approve the deployment to Prod')
+          ]
+        }
+      }
+    }
+
+    stage('Deploy to Prod') {
+      when {
+        expression { return params.Proceed == true }
       }
       steps {
         script {
-            sh 'docker build -t ${DOCKER_IMAGE} .'
-            def dockerImage = docker.image("${DOCKER_IMAGE}")
-            docker.withRegistry('https://index.docker.io/v1/', "docker") {
-                dockerImage.push()
-            }
+          sh '''
+            kubectl apply -f ${MANIFEST_PATH}/prod/deployment.yaml --namespace=prod
+            kubectl rollout status deployment/spring-boot-app --namespace=prod
+          '''
         }
       }
     }
-    stage('Update Deployment File') {
-        environment {
-            GIT_REPO_NAME = "maven-jenkins-ArgoCD"
-            GIT_USER_NAME = "mdazfar2"
-        }
-        steps {
-            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                sh '''
-                    git config user.email "mdazfaralam440@gmail.com"
-                    git config user.name "mdazfar2"
-                    BUILD_NUMBER=${BUILD_NUMBER}
-                    sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" manifest_file/deployment.yml
-                    git add manifest_file/deployment.yml
-                    git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                '''
-            }
-        }
+  }
+
+  post {
+    success {
+      echo 'Deployment successful!'
+      mail to: 'kumar.nithish0809@gmail.com',
+           subject: "Jenkins Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Good news! Jenkins job '${env.JOB_NAME}' (build #${env.BUILD_NUMBER}) completed successfully.\n\nCheck details: ${env.BUILD_URL}"
+    }
+
+    failure {
+      echo 'Deployment failed!'
+      mail to: 'kumar.nithish0809@gmail.com',
+           subject: "Jenkins Pipeline Failure: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Oops! Jenkins job '${env.JOB_NAME}' (build #${env.BUILD_NUMBER}) failed.\n\nCheck details: ${env.BUILD_URL}"
     }
   }
 }
