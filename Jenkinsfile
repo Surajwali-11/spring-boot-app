@@ -1,7 +1,7 @@
 pipeline {
   agent any
   environment {
-    IMAGE_NAME = "nithishnithi/nithish:1"
+    IMAGE_NAME = "surajwali11/suraj:1"
     MANIFEST_PATH = "manifest_file/k8s"
   }
     parameters {
@@ -11,7 +11,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        git branch: 'main', url: 'https://github.com/Nithishkumar-Ptech/spring-boot-app.git'
+        git branch: 'main', url: 'https://github.com/Surajwali-11/spring-boot-app.git'
       }
     }
 
@@ -27,7 +27,7 @@ pipeline {
         SONAR_URL = "http://localhost:9000"
       }
       steps {
-        withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+        withCredentials([string(credentialsId: 'sonrqube', variable: 'SONAR_AUTH_TOKEN')]) {
           sh '''
             mvn sonar:sonar \
               -Dsonar.login=$SONAR_AUTH_TOKEN \
@@ -108,14 +108,14 @@ pipeline {
   post {
     success {
       echo 'Deployment successful!'
-      mail to: 'kumar.nithish0809@gmail.com',
+      mail to: 'surajwali633@gmail.com',
            subject: "Jenkins Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
            body: "Good news! Jenkins job '${env.JOB_NAME}' (build #${env.BUILD_NUMBER}) completed successfully.\n\nCheck details: ${env.BUILD_URL}"
     }
 
     failure {
       echo 'Deployment failed!'
-      mail to: 'kumar.nithish0809@gmail.com',
+      mail to: 'surajwali633@gmail.com',
            subject: "Jenkins Pipeline Failure: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
            body: "Oops! Jenkins job '${env.JOB_NAME}' (build #${env.BUILD_NUMBER}) failed.\n\nCheck details: ${env.BUILD_URL}"
     }
